@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Expense Splitter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --panel: #ffffff;
+    --border: #e0e0e4;
+    --text: #1f2023;
+    --muted: #6b6d75;
+    --accent: #3b6ff0;
+    --accent-hover: #2e58c9;
+    --danger: #d9534f;
+    --header-bg: #f0f2f7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  tbody tr:last-child td { border-bottom: none; }
+  .empty-row td, .empty-state { color: var(--muted); font-style: italic; text-align: center; padding: 16px 6px; }
+  .row-delete {
+    color: var(--muted);
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px 6px;
+  }
+  .row-delete:hover { color: var(--danger); }
+  form .field { margin-bottom: 14px; }
+  label { display: block; margin-bottom: 4px; font-weight: 500; }
+  input[type="text"], input[type="number"], input[type="date"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .checkbox-list { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+  .checkbox-list label { display: flex; align-items: center; gap: 6px; font-weight: normal; margin: 0; cursor: pointer; }
+  .checkbox-list input[type="checkbox"] { width: auto; margin: 0; }
+  .add-person-row { display: flex; gap: 8px; margin-top: 12px; }
+  .add-person-row input { flex: 1; }
+  button { cursor: pointer; border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 500; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary { background: #eceef3; color: var(--text); }
+  .btn-secondary:hover { background: #dfe2ea; }
+  .btn-link {
+    background: none;
+    color: var(--accent);
+    padding: 4px 0;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .btn-link:hover { text-decoration: underline; }
+  .btn-small { padding: 6px 12px; font-size: 13px; }
+  .split-with-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .split-with-row .checkbox-list { flex: 1; }
+  .split-with-row #add-person-toggle-btn { flex-shrink: 0; white-space: nowrap; }
+  #others-toggle-btn { margin-top: 4px; }
+  #others-checkboxes { margin-top: 8px; }
+  .tax-field { max-width: 200px; margin-bottom: 16px; }
+  .amount { text-align: right; }
+  .grand-total td { font-weight: 700; border-top: 2px solid var(--border); }
+  .error { color: var(--danger); font-size: 13px; margin-top: 6px; min-height: 16px; }
+  .user-bar { display: none; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .user-bar .user-info {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .user-bar .right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  #sync-status { color: var(--muted); font-size: 12px; min-width: 60px; text-align: right; }
+
+  /* Home view */
+  .home-cta { text-align: center; padding: 8px 0 28px; }
+  .btn-large {
+    font-size: 17px;
+    padding: 18px 36px;
+    border-radius: 12px;
+  }
+  #past-receipts-list .empty-state { padding: 24px 6px; }
+  .receipt-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .receipt-card:hover { background: var(--header-bg); border-color: var(--accent); }
+  .receipt-card-name { font-weight: 600; }
+  .receipt-card-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .receipt-card-arrow { color: var(--muted); font-size: 20px; flex-shrink: 0; }
+
+  /* Detail view */
+  .back-btn { margin-bottom: 16px; }
+  .detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .detail-header h2 {
+    font-size: 18px;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--text);
+    margin: 0 0 4px;
+    padding: 0;
+  }
+  .detail-header .meta { color: var(--muted); font-size: 13px; }
+
+  #loading-screen {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 100px 20px;
+    color: var(--muted);
+    font-size: 15px;
+  }
+  .spinner {
+    width: 64px;
+    height: 64px;
+    border: 6px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 20px 12px; }
+    .panel { padding: 16px; }
+    h1 { font-size: 18px; }
+    .btn-large { padding: 14px 24px; font-size: 16px; }
+    th, td { padding: 8px 4px; font-size: 13px; }
+    .home-cta { padding: 4px 0 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Expense Splitter</h1>
+  <p class="sub">Signed-in data is read from and saved to a shared Google Sheet.</p>
+
+  <div class="user-bar" id="user-bar">
+    <span class="user-info" id="user-info"></span>
+    <span class="right">
+      <span id="sync-status"></span>
+      <button type="button" class="btn-secondary" id="signout-btn">Sign out</button>
+    </span>
+  </div>
+
+  <div class="panel" id="signin-panel">
+    <h2>Sign in</h2>
+    <p>Sign in with your Google account to identify yourself. The spreadsheet itself is only ever read or written by the Apps Script backend, not by this page.</p>
+    <div id="g_id_signin"></div>
+    <div class="error" id="auth-error"></div>
+  </div>
+
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <p>Loading your data…</p>
+  </div>
+
+  <div id="app-panels" style="display:none;">
+
+    <div class="panel" id="home-view">
+      <div class="home-cta">
+        <button type="button" class="btn-primary btn-large" id="home-new-receipt-btn">+ Start New Receipt</button>
+      </div>
+      <h2>Past Receipts</h2>
+      <div id="past-receipts-list"></div>
+    </div>
+
+    <div class="panel" id="receipt-panel" style="display:none;">
+      <button type="button" class="btn-secondary back-btn" id="back-from-new-btn">&larr; Back</button>
+      <h2>New Receipt</h2>
+      <form id="add-receipt-form">
+        <div class="field">
+          <label for="receipt-name">Receipt name</label>
+          <input type="text" id="receipt-name" placeholder="e.g. Trader Joe's run" required>
+        </div>
+        <div class="field">
+          <label for="receipt-date">Date</label>
+          <input type="date" id="receipt-date" required>
+        </div>
+        <div class="field">
+          <label for="receipt-tax">Tax ($)</label>
+          <input type="number" id="receipt-tax" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <button type="submit" class="btn-primary">Start receipt</button>
+      </form>
+    </div>
+
+    <div id="detail-view" style="display:none;">
+      <button type="button" class="btn-secondary back-btn" id="back-to-home-btn">&larr; Back to receipts</button>
+
+      <div class="panel">
+        <div class="detail-header">
+          <div>
+            <h2 id="detail-name"></h2>
+            <div class="meta" id="detail-meta"></div>
+          </div>
+          <button type="button" class="row-delete" id="delete-receipt-btn" title="Remove this receipt" style="font-size:18px;">&times;</button>
+        </div>
+
+        <div class="table-scroll">
+          <table id="log-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="amount">Price</th>
+                <th>Split With</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel" id="item-panel">
+        <h2>Add Item</h2>
+        <form id="add-item-form">
+          <div class="field">
+            <label for="item-name">Item</label>
+            <input type="text" id="item-name" placeholder="e.g. Groceries" required>
+          </div>
+          <div class="field">
+            <label for="item-price">Price</label>
+            <input type="number" id="item-price" step="0.01" min="0" placeholder="0.00" required>
+          </div>
+          <div class="field">
+            <label>Split with</label>
+            <div class="split-with-row">
+              <div class="checkbox-list" id="people-checkboxes"></div>
+              <button type="button" class="btn-link" id="add-person-toggle-btn">+ Add person</button>
+            </div>
+            <button type="button" class="btn-link" id="others-toggle-btn" style="display:none;"></button>
+            <div class="checkbox-list" id="others-checkboxes" style="display:none;"></div>
+            <div class="add-person-row" id="add-person-row" style="display:none;">
+              <input type="text" id="new-person-name" placeholder="Name">
+              <button type="button" class="btn-secondary btn-small" id="add-person-btn">Add</button>
+            </div>
+          </div>
+          <div class="error" id="form-error"></div>
+          <button type="submit" class="btn-primary" id="add-item-submit">Add item</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Totals by Person</h2>
+        <div class="field tax-field">
+          <label for="receipt-tax-edit">Tax ($)</label>
+          <input type="number" id="receipt-tax-edit" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="table-scroll">
+          <table class="totals-table">
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th class="amount">Total Owed</th>
+              </tr>
+            </thead>
+            <tbody id="totals-body"></tbody>
+            <tfoot>
+              <tr class="grand-total">
+                <td>Grand Total</td>
+                <td class="amount" id="grand-total">$0.00</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ---- Fill these in ----
+  const CONFIG = {
+    CLIENT_ID: '527511189320-fo98blqlceaigbm2ps678dmbd6u25il2.apps.googleusercontent.com',
+    // Paste the /exec URL from your Apps Script Web App deployment (see apps-script.gs).
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzUPQRQBMR1eicnWwlaNCIQgb6CmztC3EGaLCOA3kSHDrovTftgbKL404rNoG0_lDOd/exec',
+  };
+
+  let state = { people: [], receipts: [], selectedReceiptId: null };
+  let idToken = null;
+  let currentView = 'home'; // 'home' | 'newReceipt' | 'detail'
+
+  function money(n) {
+    return '$' + n.toFixed(2);
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function makeId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function decodeJwt(token) {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+    );
+    return JSON.parse(json);
+  }
+
+  // ---------- Auth (identity only — no Sheets scope is ever requested) ----------
+
+  function gisLoaded() {
+    google.accounts.id.initialize({
+      client_id: CONFIG.CLIENT_ID,
+      callback: handleCredentialResponse,
+    });
+    google.accounts.id.renderButton(document.getElementById('g_id_signin'), { theme: 'outline', size: 'large' });
+  }
+
+  document.getElementById('signout-btn').addEventListener('click', () => {
+    google.accounts.id.disableAutoSelect();
+    idToken = null;
+    document.getElementById('app-panels').style.display = 'none';
+    document.getElementById('user-bar').style.display = 'none';
+    document.getElementById('signin-panel').style.display = '';
+  });
+
+  async function handleCredentialResponse(response) {
+    idToken = response.credential;
+    const payload = decodeJwt(idToken);
+    await afterSignIn(payload);
+  }
+
+  async function afterSignIn(payload) {
+    const errorEl = document.getElementById('auth-error');
+    errorEl.textContent = '';
+    try {
+      document.getElementById('user-info').textContent = payload.email;
+      document.getElementById('user-bar').style.display = 'flex';
+      document.getElementById('signin-panel').style.display = 'none';
+      document.getElementById('loading-screen').style.display = 'flex';
+
+      const data = await callAppsScript('load');
+      state.people = data.people;
+      state.receipts = data.receipts;
+      state.selectedReceiptId = null;
+
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('app-panels').style.display = '';
+      renderPeopleCheckboxes();
+      showView('home');
+    } catch (err) {
+      idToken = null;
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('user-bar').style.display = 'none';
+      document.getElementById('signin-panel').style.display = '';
+      errorEl.textContent = 'Sign-in rejected: ' + err.message;
+    }
+  }
+
+  function setSyncStatus(text) {
+    document.getElementById('sync-status').textContent = text;
+  }
+
+  // ---------- Apps Script backend (does the actual Sheet reads/writes) ----------
+
+  async function callAppsScript(action, extra = {}) {
+    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight
+      body: JSON.stringify({ idToken, action, ...extra }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  async function syncToSheet() {
+    setSyncStatus('Saving...');
+    try {
+      await callAppsScript('sync', { state: { people: state.people, receipts: state.receipts } });
+      setSyncStatus('Synced');
+      setTimeout(() => setSyncStatus(''), 1500);
+    } catch (err) {
+      setSyncStatus('');
+      document.getElementById('form-error').textContent = 'Sync failed: ' + err.message + ' — your last change may not be saved.';
+    }
+  }
+
+  // ---------- View navigation ----------
+
+  function showView(view) {
+    currentView = view;
+    document.getElementById('home-view').style.display = view === 'home' ? '' : 'none';
+    document.getElementById('receipt-panel').style.display = view === 'newReceipt' ? '' : 'none';
+    document.getElementById('detail-view').style.display = view === 'detail' ? '' : 'none';
+
+    if (view === 'home') renderHome();
+    if (view === 'detail') renderDetail();
+  }
+
+  function openReceipt(id) {
+    state.selectedReceiptId = id;
+    showView('detail');
+  }
+
+  // ---------- App logic ----------
+
+  function getReceiptById(id) {
+    return state.receipts.find(r => r.id === id) || null;
+  }
+
+  function selectedReceipt() {
+    return getReceiptById(state.selectedReceiptId);
+  }
+
+  function addPerson(name) {
+    name = name.trim();
+    if (!name || state.people.includes(name)) return false;
+    state.people.push(name);
+    return true;
+  }
+
+  const PRIMARY_PEOPLE_COUNT = 4;
+  let othersExpanded = false;
+
+  function makePersonCheckbox(person) {
+    const label = document.createElement('label');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = person;
+    checkbox.name = 'split-with';
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(person));
+    return label;
+  }
+
+  function renderPeopleCheckboxes() {
+    const primaryContainer = document.getElementById('people-checkboxes');
+    const othersContainer = document.getElementById('others-checkboxes');
+    const othersToggle = document.getElementById('others-toggle-btn');
+    primaryContainer.innerHTML = '';
+    othersContainer.innerHTML = '';
+
+    if (state.people.length === 0) {
+      const span = document.createElement('span');
+      span.style.color = 'var(--muted)';
+      span.textContent = 'No people yet — add one below.';
+      primaryContainer.appendChild(span);
+      othersToggle.style.display = 'none';
+      othersContainer.style.display = 'none';
+      return;
+    }
+
+    const primary = state.people.slice(0, PRIMARY_PEOPLE_COUNT);
+    const rest = state.people.slice(PRIMARY_PEOPLE_COUNT);
+
+    primary.forEach(p => primaryContainer.appendChild(makePersonCheckbox(p)));
+
+    if (rest.length === 0) {
+      othersExpanded = false;
+      othersToggle.style.display = 'none';
+      othersContainer.style.display = 'none';
+    } else {
+      rest.forEach(p => othersContainer.appendChild(makePersonCheckbox(p)));
+      othersToggle.style.display = '';
+      othersToggle.textContent = othersExpanded ? 'Others ▾' : `Others (${rest.length}) ▸`;
+      othersContainer.style.display = othersExpanded ? 'flex' : 'none';
+    }
+  }
+
+  function renderHome() {
+    const list = document.getElementById('past-receipts-list');
+    list.innerHTML = '';
+    if (state.receipts.length === 0) {
+      list.innerHTML = '<p class="empty-state">No receipts yet — start one above.</p>';
+      return;
+    }
+    [...state.receipts].reverse().forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'receipt-card';
+      const itemCount = r.items.length;
+      card.innerHTML = `
+        <div>
+          <div class="receipt-card-name">${escapeHtml(r.name)}</div>
+          <div class="receipt-card-meta">${r.date} · tax ${money(Number(r.tax) || 0)} · ${itemCount} item${itemCount === 1 ? '' : 's'}</div>
+        </div>
+        <span class="receipt-card-arrow">&rsaquo;</span>
+      `;
+      card.addEventListener('click', () => openReceipt(r.id));
+      list.appendChild(card);
+    });
+  }
+
+  function renderDetail() {
+    const receipt = selectedReceipt();
+    if (!receipt) {
+      showView('home');
+      return;
+    }
+    document.getElementById('detail-name').textContent = receipt.name;
+    document.getElementById('detail-meta').textContent = receipt.date;
+    document.getElementById('receipt-tax-edit').value = receipt.tax || '';
+    renderLog();
+    renderTotals();
+  }
+
+  function renderLog() {
+    const body = document.getElementById('log-body');
+    body.innerHTML = '';
+
+    const receipt = selectedReceipt();
+    if (!receipt) return;
+
+    if (receipt.items.length === 0) {
+      const emptyTr = document.createElement('tr');
+      emptyTr.innerHTML = '<td colspan="4" class="empty-state">No items yet.</td>';
+      body.appendChild(emptyTr);
+    } else {
+      receipt.items.forEach((item, iIdx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(item.name)}</td>
+          <td class="amount">${money(item.price)}</td>
+          <td>${item.splitWith.map(escapeHtml).join(', ')}</td>
+          <td><button class="row-delete" data-item-idx="${iIdx}" title="Remove item">&times;</button></td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    body.querySelectorAll('.row-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        receipt.items.splice(Number(btn.dataset.itemIdx), 1);
+        renderLog();
+        renderTotals();
+        await syncToSheet();
+      });
+    });
+  }
+
+  function computeTotals(receipt) {
+    const totals = {};
+    state.people.forEach(p => totals[p] = 0);
+    if (!receipt) return totals;
+
+    const receiptTotals = {};
+    receipt.items.forEach(item => {
+      if (item.splitWith.length === 0) return;
+      const share = item.price / item.splitWith.length;
+      item.splitWith.forEach(p => {
+        receiptTotals[p] = (receiptTotals[p] || 0) + share;
+      });
+    });
+
+    const subtotal = Object.values(receiptTotals).reduce((sum, v) => sum + v, 0);
+    const tax = Number(receipt.tax) || 0;
+
+    Object.keys(receiptTotals).forEach(p => {
+      let amount = receiptTotals[p];
+      if (tax > 0 && subtotal > 0) {
+        amount += tax * (receiptTotals[p] / subtotal);
+      }
+      totals[p] = (totals[p] || 0) + amount;
+    });
+
+    return totals;
+  }
+
+  function renderTotals() {
+    const body = document.getElementById('totals-body');
+    body.innerHTML = '';
+    const totals = computeTotals(selectedReceipt());
+    let grandTotal = 0;
+
+    const owing = state.people.filter(person => Math.abs(totals[person] || 0) >= 0.005);
+
+    if (state.people.length === 0) {
+      const tr = document.createElement('tr');
+      tr.className = 'empty-row';
+      tr.innerHTML = '<td colspan="2">Add people to see totals.</td>';
+      body.appendChild(tr);
+    } else if (owing.length === 0) {
+      const tr = document.createElement('tr');
+      tr.className = 'empty-row';
+      tr.innerHTML = '<td colspan="2">No balances yet.</td>';
+      body.appendChild(tr);
+    } else {
+      owing.forEach(person => {
+        const amount = totals[person] || 0;
+        grandTotal += amount;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${escapeHtml(person)}</td><td class="amount">${money(amount)}</td>`;
+        body.appendChild(tr);
+      });
+    }
+
+    document.getElementById('grand-total').textContent = money(grandTotal);
+  }
+
+  document.getElementById('home-new-receipt-btn').addEventListener('click', () => {
+    document.getElementById('add-receipt-form').reset();
+    showView('newReceipt');
+  });
+
+  document.getElementById('back-from-new-btn').addEventListener('click', () => {
+    showView('home');
+  });
+
+  document.getElementById('back-to-home-btn').addEventListener('click', () => {
+    state.selectedReceiptId = null;
+    showView('home');
+  });
+
+  document.getElementById('others-toggle-btn').addEventListener('click', () => {
+    othersExpanded = !othersExpanded;
+    const rest = state.people.slice(PRIMARY_PEOPLE_COUNT);
+    document.getElementById('others-checkboxes').style.display = othersExpanded ? 'flex' : 'none';
+    document.getElementById('others-toggle-btn').textContent = othersExpanded ? 'Others ▾' : `Others (${rest.length}) ▸`;
+  });
+
+  document.getElementById('add-person-toggle-btn').addEventListener('click', () => {
+    document.getElementById('add-person-toggle-btn').style.display = 'none';
+    document.getElementById('add-person-row').style.display = 'flex';
+    document.getElementById('new-person-name').focus();
+  });
+
+  function collapseAddPersonRow() {
+    document.getElementById('new-person-name').value = '';
+    document.getElementById('add-person-row').style.display = 'none';
+    document.getElementById('add-person-toggle-btn').style.display = '';
+  }
+
+  document.getElementById('add-person-btn').addEventListener('click', async () => {
+    const input = document.getElementById('new-person-name');
+    if (addPerson(input.value)) {
+      collapseAddPersonRow();
+      renderPeopleCheckboxes();
+      renderTotals();
+      await syncToSheet();
+    }
+  });
+
+  document.getElementById('new-person-name').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('add-person-btn').click();
+    } else if (e.key === 'Escape') {
+      collapseAddPersonRow();
+    }
+  });
+
+  document.getElementById('add-receipt-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('receipt-name').value.trim();
+    const date = document.getElementById('receipt-date').value;
+    const tax = parseFloat(document.getElementById('receipt-tax').value) || 0;
+
+    if (!name || !date) return;
+
+    const newReceipt = { id: makeId(), name, date, tax, items: [] };
+    state.receipts.push(newReceipt);
+    openReceipt(newReceipt.id);
+    e.target.reset();
+
+    await syncToSheet();
+  });
+
+  document.getElementById('receipt-tax-edit').addEventListener('change', async (e) => {
+    const receipt = selectedReceipt();
+    if (!receipt) return;
+    receipt.tax = parseFloat(e.target.value) || 0;
+    renderTotals();
+    await syncToSheet();
+  });
+
+  document.getElementById('delete-receipt-btn').addEventListener('click', async () => {
+    const receipt = selectedReceipt();
+    if (!receipt) return;
+    state.receipts = state.receipts.filter(r => r.id !== receipt.id);
+    state.selectedReceiptId = null;
+    showView('home');
+    await syncToSheet();
+  });
+
+  document.getElementById('add-item-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('form-error');
+    errorEl.textContent = '';
+
+    const receipt = selectedReceipt();
+    if (!receipt) {
+      errorEl.textContent = 'No receipt open — go back and select or start one.';
+      return;
+    }
+
+    const name = document.getElementById('item-name').value.trim();
+    const price = parseFloat(document.getElementById('item-price').value);
+    const checked = Array.from(document.querySelectorAll('input[name="split-with"]:checked')).map(cb => cb.value);
+
+    if (!name || isNaN(price) || price < 0) {
+      errorEl.textContent = 'Please fill in item and a valid price.';
+      return;
+    }
+    if (checked.length === 0) {
+      errorEl.textContent = 'Select at least one person to split with.';
+      return;
+    }
+
+    receipt.items.push({ id: makeId(), name, price, splitWith: checked });
+
+    renderLog();
+    renderTotals();
+    e.target.reset();
+    document.querySelectorAll('input[name="split-with"]').forEach(cb => cb.checked = false);
+
+    await syncToSheet();
+  });
+</script>
+</body>
+</html>
