@@ -1,4 +1,4 @@
-# Expense Splitter
+# wolfCart
 
 A lightweight, no-backend expense splitter for tracking shared receipts and who owes what. Sign in with Google, log receipts and their items, split each item between people, and see a running per-person total — all backed by a Google Sheet you control.
 
