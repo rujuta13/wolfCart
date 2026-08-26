@@ -1,43 +1,30 @@
 # wolfCart
 
-A lightweight, no-backend expense splitter for tracking shared receipts and who owes what. Sign in with Google, log receipts and their items, split each item between people, and see a running per-person total — all backed by a Google Sheet you control.
+Split shared receipts and track who owes what. Sign in with Google, log receipts and items, and see running per-person totals — backed by a Google Sheet.
 
-## How it works
+Static site (`index.html`, no build step) + a Google Apps Script Web App that's the only thing allowed to read/write the Sheet. The browser only ever gets a Google identity, never Sheets API access.
 
-- **Frontend**: a single static `index.html` (no build step, no server) — deployable anywhere that serves static files, including GitHub Pages.
-- **Auth**: Google Sign-In is used only to identify who's using the app. No Google Sheets API scope is ever requested by the browser.
-- **Data**: all reads/writes to the spreadsheet happen through a Google Apps Script Web App, deployed separately from inside the Sheet itself. It verifies each request's Google identity token, optionally checks it against an allow-list, and is the only thing that ever touches the Sheet.
+## Setup
 
-```
-Browser (index.html)  --ID token-->  Apps Script Web App  --reads/writes-->  Google Sheet
-```
+**1. OAuth Client ID** (console.cloud.google.com)
+- OAuth consent screen → External → add yourself as a test user.
+- Credentials → Create Credentials → OAuth client ID → Web application → add your origins (e.g. `http://localhost:8000`, `https://<you>.github.io`).
+- Paste the Client ID into `CONFIG.CLIENT_ID` in `index.html`.
 
-## One-time setup
+**2. Google Sheet + backend**
+- Create a blank Sheet → Extensions → Apps Script → paste in `apps-script.gs`.
+- Set `CONFIG.CLIENT_ID` there to match, and optionally list allowed emails in `ALLOWED_EMAILS`.
+- Deploy → New deployment → Web app → Execute as **Me**, access **Anyone**.
+- Paste the `/exec` URL into `CONFIG.APPS_SCRIPT_URL` in `index.html`.
 
-### 1. Google Cloud OAuth Client ID
-1. Create a project at [console.cloud.google.com](https://console.cloud.google.com).
-2. **APIs & Services → OAuth consent screen** — set it up as External, add scopes `.../auth/userinfo.email` and `openid`/`profile` (default), and add your Google account(s) as **test users** (the app stays unverified, which is fine for personal/small-group use).
-3. **APIs & Services → Credentials → Create Credentials → OAuth client ID** → type **Web application**. Add every origin you'll load the page from under "Authorized JavaScript origins" (e.g. `http://localhost:8000` for local testing, `https://<you>.github.io` for the deployed site).
-4. Copy the Client ID into `CONFIG.CLIENT_ID` in `index.html`.
+Editing the script later? Redeploy the *same* deployment (Manage deployments → edit → New version) so the URL doesn't change.
 
-### 2. Google Sheet + Apps Script backend
-1. Create a blank Google Sheet.
-2. **Extensions → Apps Script**, paste in `apps-script.gs`, and set its `CONFIG.CLIENT_ID` to the same value as above.
-3. Optionally restrict access via `CONFIG.ALLOWED_EMAILS` in that file (an array of allowed emails; leave empty to allow any Google account that can obtain a valid identity token for this Client ID).
-4. **Deploy → New deployment → Web app** — Execute as **Me**, access **Anyone**.
-5. Copy the resulting `/exec` URL into `CONFIG.APPS_SCRIPT_URL` in `index.html`.
-
-Any time you edit `apps-script.gs`, you need to push a **new version** of the *existing* deployment (Deploy → Manage deployments → edit → Version: New version) for changes to go live — creating a brand-new deployment instead will change the `/exec` URL and require updating `index.html` again.
-
-> The copy of `apps-script.gs` in this repo is a template — it ships with a placeholder `CLIENT_ID` and an empty `ALLOWED_EMAILS`. Fill in your own values in the Apps Script editor directly; avoid committing your real allow-list back to a public repo.
-
-## Running locally
+## Run locally
 
 ```
 python3 -m http.server 8000
 ```
-then open `http://localhost:8000`.
 
-## Deploying
+## Deploy
 
-Push this repo to GitHub and enable **Settings → Pages** (serve from the `main` branch, root folder). Remember to add the resulting `https://<you>.github.io/...` origin to the OAuth Client's authorized JavaScript origins, or sign-in will fail.
+Push to GitHub, enable Settings → Pages (branch `main`, root), then add the `github.io` URL to the OAuth Client's authorized origins.
