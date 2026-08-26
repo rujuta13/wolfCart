@@ -22,14 +22,12 @@ Browser (index.html)  --ID token-->  Apps Script Web App  --reads/writes-->  Goo
 
 ### 2. Google Sheet + Apps Script backend
 1. Create a blank Google Sheet.
-2. **Extensions → Apps Script**, paste in `apps-script.gs` (kept locally, not committed — see below), and set its `CONFIG.CLIENT_ID` to the same value as above.
+2. **Extensions → Apps Script**, paste in `apps-script.gs`, and set its `CONFIG.CLIENT_ID` to the same value as above.
 3. Optionally restrict access via `CONFIG.ALLOWED_EMAILS` in that file (an array of allowed emails; leave empty to allow any Google account that can obtain a valid identity token for this Client ID).
 4. **Deploy → New deployment → Web app** — Execute as **Me**, access **Anyone**.
 5. Copy the resulting `/exec` URL into `CONFIG.APPS_SCRIPT_URL` in `index.html`.
 
 Any time you edit `apps-script.gs`, you need to push a **new version** of the *existing* deployment (Deploy → Manage deployments → edit → Version: New version) for changes to go live — creating a brand-new deployment instead will change the `/exec` URL and require updating `index.html` again.
-
-> `apps-script.gs` is intentionally excluded from this repo (see `.gitignore`) since it may contain real email addresses in `ALLOWED_EMAILS`. Keep your working copy locally and in the Apps Script editor.
 
 ## Running locally
 
