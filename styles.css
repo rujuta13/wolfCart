@@ -145,7 +145,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .receipt-card-arrow { color: var(--muted); font-size: 20px; flex-shrink: 0; }
 
 /* Detail view */
-.back-btn { margin-bottom: 16px; }
+.detail-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.back-btn { margin-bottom: 0; }
+.btn-danger-text { color: var(--danger); }
 .detail-header {
   display: flex;
   justify-content: space-between;

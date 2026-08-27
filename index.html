@@ -70,7 +70,10 @@
     </div>
 
     <div id="detail-view" style="display:none;">
-      <button type="button" class="btn-secondary back-btn" id="back-to-home-btn">&larr; Back to receipts</button>
+      <div class="detail-top-row">
+        <button type="button" class="btn-secondary back-btn" id="back-to-home-btn">&larr; Back to receipts</button>
+        <button type="button" class="btn-secondary btn-danger-text" id="delete-receipt-btn">Delete Receipt</button>
+      </div>
 
       <div class="panel">
         <div class="detail-header">
@@ -78,7 +81,6 @@
             <h2 id="detail-name"></h2>
             <div class="meta" id="detail-meta"></div>
           </div>
-          <button type="button" class="row-delete" id="delete-receipt-btn" title="Remove this receipt" style="font-size:18px;">&times;</button>
         </div>
 
         <div class="table-scroll">
@@ -643,6 +645,7 @@
   document.getElementById('delete-receipt-btn').addEventListener('click', async () => {
     const receipt = selectedReceipt();
     if (!receipt) return;
+    if (!confirm('Delete this receipt? This cannot be undone.')) return;
     state.receipts = state.receipts.filter(r => r.id !== receipt.id);
     state.selectedReceiptId = null;
     showView('home');
