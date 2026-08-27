@@ -81,6 +81,7 @@
             <h2 id="detail-name"></h2>
             <div class="meta" id="detail-meta"></div>
           </div>
+          <button type="button" class="btn-link" id="edit-participants-btn" style="display:none;">Edit who's involved</button>
         </div>
 
         <div class="table-scroll">
@@ -98,6 +99,19 @@
         </div>
       </div>
 
+      <div class="panel" id="participants-panel" style="display:none;">
+        <h2>Who's involved?</h2>
+        <p class="sub" style="margin-bottom:16px;">Pick everyone splitting this receipt — only they'll show up when you add items.</p>
+        <div class="checkbox-list" id="participants-checkboxes"></div>
+        <button type="button" class="btn-link" id="participants-add-person-toggle-btn">+ Add person</button>
+        <div class="add-person-row" id="participants-add-person-row" style="display:none;">
+          <input type="text" id="participants-new-person-name" placeholder="Name">
+          <button type="button" class="btn-secondary btn-small" id="participants-add-person-btn">Add</button>
+        </div>
+        <div class="error" id="participants-error"></div>
+        <button type="button" class="btn-primary" id="participants-continue-btn" style="margin-top:16px;">Continue</button>
+      </div>
+
       <div class="panel" id="item-panel">
         <h2>Add Item</h2>
         <form id="add-item-form">
@@ -111,6 +125,11 @@
           </div>
           <div class="field">
             <label>Split with</label>
+            <div class="split-quick-actions">
+              <button type="button" class="btn-link" id="split-all-btn">All</button>
+              <button type="button" class="btn-link" id="split-me-btn" style="display:none;">Just me</button>
+              <button type="button" class="btn-link" id="split-clear-btn">Clear</button>
+            </div>
             <div class="split-with-row">
               <div class="checkbox-list" id="people-checkboxes"></div>
               <button type="button" class="btn-link" id="add-person-toggle-btn">+ Add person</button>
@@ -248,7 +267,6 @@
 
       document.getElementById('loading-screen').style.display = 'none';
       document.getElementById('app-panels').style.display = '';
-      renderPeopleCheckboxes();
 
       if (!myName) {
         showWhoAmI();
@@ -332,7 +350,6 @@
       await callAppsScript('setName', { name });
       myName = name;
       if (!state.people.includes(name)) state.people.push(name);
-      renderPeopleCheckboxes();
       showView('home');
     } catch (err) {
       errorEl.textContent = 'Failed to save: ' + err.message;
@@ -366,15 +383,21 @@
   const PRIMARY_PEOPLE_COUNT = 4;
   let othersExpanded = false;
 
-  function makePersonCheckbox(person) {
+  function makeCheckboxLabel(person, groupName, checked) {
     const label = document.createElement('label');
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.value = person;
-    checkbox.name = 'split-with';
+    checkbox.name = groupName;
+    if (checked) checkbox.checked = true;
     label.appendChild(checkbox);
     label.appendChild(document.createTextNode(person));
     return label;
+  }
+
+  function currentParticipants() {
+    const receipt = selectedReceipt();
+    return (receipt && receipt.participants) || [];
   }
 
   function renderPeopleCheckboxes() {
@@ -384,31 +407,54 @@
     primaryContainer.innerHTML = '';
     othersContainer.innerHTML = '';
 
-    if (state.people.length === 0) {
+    const people = currentParticipants();
+    document.getElementById('split-me-btn').style.display = (myName && people.includes(myName)) ? '' : 'none';
+
+    if (people.length === 0) {
       const span = document.createElement('span');
       span.style.color = 'var(--muted)';
-      span.textContent = 'No people yet — add one below.';
+      span.textContent = 'No participants set for this receipt.';
       primaryContainer.appendChild(span);
       othersToggle.style.display = 'none';
       othersContainer.style.display = 'none';
       return;
     }
 
-    const primary = state.people.slice(0, PRIMARY_PEOPLE_COUNT);
-    const rest = state.people.slice(PRIMARY_PEOPLE_COUNT);
+    const primary = people.slice(0, PRIMARY_PEOPLE_COUNT);
+    const rest = people.slice(PRIMARY_PEOPLE_COUNT);
 
-    primary.forEach(p => primaryContainer.appendChild(makePersonCheckbox(p)));
+    primary.forEach(p => primaryContainer.appendChild(makeCheckboxLabel(p, 'split-with')));
 
     if (rest.length === 0) {
       othersExpanded = false;
       othersToggle.style.display = 'none';
       othersContainer.style.display = 'none';
     } else {
-      rest.forEach(p => othersContainer.appendChild(makePersonCheckbox(p)));
+      rest.forEach(p => othersContainer.appendChild(makeCheckboxLabel(p, 'split-with')));
       othersToggle.style.display = '';
       othersToggle.textContent = othersExpanded ? 'Others ▾' : `Others (${rest.length}) ▸`;
       othersContainer.style.display = othersExpanded ? 'flex' : 'none';
     }
+  }
+
+  function computeDefaultParticipants(receipt) {
+    const set = new Set();
+    receipt.items.forEach(item => item.splitWith.forEach(p => set.add(p)));
+    return Array.from(set);
+  }
+
+  function renderParticipantsCheckboxes(preSelected) {
+    const container = document.getElementById('participants-checkboxes');
+    container.innerHTML = '';
+    document.getElementById('participants-error').textContent = '';
+
+    if (state.people.length === 0) {
+      container.innerHTML = '<span style="color:var(--muted);">No people yet — add one below.</span>';
+      return;
+    }
+    state.people.forEach(person => {
+      container.appendChild(makeCheckboxLabel(person, 'participant', preSelected.includes(person)));
+    });
   }
 
   function renderWhoAmINote() {
@@ -462,9 +508,25 @@
     }
     document.getElementById('detail-name').textContent = receipt.name;
     document.getElementById('detail-meta').textContent = receipt.date;
-    document.getElementById('receipt-tax-edit').value = receipt.tax || '';
-    refreshTotals(receipt.id);
     renderLog();
+
+    const needsParticipants = !receipt.participants || receipt.participants.length === 0;
+    document.getElementById('participants-panel').style.display = needsParticipants ? '' : 'none';
+    document.getElementById('item-panel').style.display = needsParticipants ? 'none' : '';
+    document.getElementById('tax-panel').style.display = needsParticipants ? 'none' : '';
+    document.getElementById('edit-participants-btn').style.display = needsParticipants ? 'none' : '';
+
+    if (needsParticipants) {
+      const defaults = (receipt.participants && receipt.participants.length)
+        ? receipt.participants
+        : computeDefaultParticipants(receipt);
+      renderParticipantsCheckboxes(defaults);
+      document.getElementById('totals-panel').style.display = 'none';
+    } else {
+      document.getElementById('receipt-tax-edit').value = receipt.tax || '';
+      renderPeopleCheckboxes();
+      refreshTotals(receipt.id);
+    }
   }
 
   function renderLog() {
@@ -574,42 +636,108 @@
     showView('home');
   });
 
-  document.getElementById('others-toggle-btn').addEventListener('click', () => {
-    othersExpanded = !othersExpanded;
-    const rest = state.people.slice(PRIMARY_PEOPLE_COUNT);
+  function setOthersExpanded(expanded) {
+    othersExpanded = expanded;
+    const rest = currentParticipants().slice(PRIMARY_PEOPLE_COUNT);
     document.getElementById('others-checkboxes').style.display = othersExpanded ? 'flex' : 'none';
     document.getElementById('others-toggle-btn').textContent = othersExpanded ? 'Others ▾' : `Others (${rest.length}) ▸`;
-  });
-
-  document.getElementById('add-person-toggle-btn').addEventListener('click', () => {
-    document.getElementById('add-person-toggle-btn').style.display = 'none';
-    document.getElementById('add-person-row').style.display = 'flex';
-    document.getElementById('new-person-name').focus();
-  });
-
-  function collapseAddPersonRow() {
-    document.getElementById('new-person-name').value = '';
-    document.getElementById('add-person-row').style.display = 'none';
-    document.getElementById('add-person-toggle-btn').style.display = '';
   }
 
-  document.getElementById('add-person-btn').addEventListener('click', async () => {
-    const input = document.getElementById('new-person-name');
-    if (addPerson(input.value)) {
-      collapseAddPersonRow();
-      renderPeopleCheckboxes();
-      refreshTotals(selectedReceipt()?.id);
-      await syncToSheet();
+  document.getElementById('others-toggle-btn').addEventListener('click', () => {
+    setOthersExpanded(!othersExpanded);
+  });
+
+  document.getElementById('split-all-btn').addEventListener('click', () => {
+    document.querySelectorAll('input[name="split-with"]').forEach(cb => { cb.checked = true; });
+    if (currentParticipants().length > PRIMARY_PEOPLE_COUNT) setOthersExpanded(true);
+  });
+
+  document.getElementById('split-clear-btn').addEventListener('click', () => {
+    document.querySelectorAll('input[name="split-with"]').forEach(cb => { cb.checked = false; });
+  });
+
+  document.getElementById('split-me-btn').addEventListener('click', () => {
+    document.querySelectorAll('input[name="split-with"]').forEach(cb => {
+      cb.checked = cb.value === myName;
+    });
+    if (!currentParticipants().slice(0, PRIMARY_PEOPLE_COUNT).includes(myName)) {
+      setOthersExpanded(true);
     }
   });
 
-  document.getElementById('new-person-name').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      document.getElementById('add-person-btn').click();
-    } else if (e.key === 'Escape') {
-      collapseAddPersonRow();
+  document.getElementById('edit-participants-btn').addEventListener('click', () => {
+    const receipt = selectedReceipt();
+    if (!receipt) return;
+    document.getElementById('participants-panel').style.display = '';
+    document.getElementById('item-panel').style.display = 'none';
+    document.getElementById('tax-panel').style.display = 'none';
+    document.getElementById('totals-panel').style.display = 'none';
+    renderParticipantsCheckboxes(receipt.participants || []);
+  });
+
+  document.getElementById('participants-continue-btn').addEventListener('click', async () => {
+    const receipt = selectedReceipt();
+    if (!receipt) return;
+    const checked = Array.from(document.querySelectorAll('input[name="participant"]:checked')).map(cb => cb.value);
+    if (checked.length === 0) {
+      document.getElementById('participants-error').textContent = 'Select at least one person.';
+      return;
     }
+    receipt.participants = checked;
+    renderDetail();
+    await syncToSheet();
+  });
+
+  function setupAddPersonToggle(toggleBtnId, rowId, inputId, addBtnId, onAdd) {
+    const toggleBtn = document.getElementById(toggleBtnId);
+    const row = document.getElementById(rowId);
+    const input = document.getElementById(inputId);
+    const addBtn = document.getElementById(addBtnId);
+
+    function collapse() {
+      input.value = '';
+      row.style.display = 'none';
+      toggleBtn.style.display = '';
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      toggleBtn.style.display = 'none';
+      row.style.display = 'flex';
+      input.focus();
+    });
+
+    addBtn.addEventListener('click', async () => {
+      if (addPerson(input.value)) {
+        const name = input.value.trim();
+        collapse();
+        await onAdd(name);
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addBtn.click();
+      } else if (e.key === 'Escape') {
+        collapse();
+      }
+    });
+  }
+
+  setupAddPersonToggle('add-person-toggle-btn', 'add-person-row', 'new-person-name', 'add-person-btn', async (name) => {
+    const receipt = selectedReceipt();
+    if (receipt && receipt.participants && !receipt.participants.includes(name)) {
+      receipt.participants.push(name);
+    }
+    renderPeopleCheckboxes();
+    refreshTotals(receipt?.id);
+    await syncToSheet();
+  });
+
+  setupAddPersonToggle('participants-add-person-toggle-btn', 'participants-add-person-row', 'participants-new-person-name', 'participants-add-person-btn', async (name) => {
+    const currentlyChecked = Array.from(document.querySelectorAll('input[name="participant"]:checked')).map(cb => cb.value);
+    renderParticipantsCheckboxes([...currentlyChecked, name]);
+    await syncToSheet();
   });
 
   document.getElementById('add-receipt-form').addEventListener('submit', async (e) => {
@@ -619,7 +747,7 @@
 
     if (!name || !date) return;
 
-    const newReceipt = { id: makeId(), name, date, tax: 0, items: [] };
+    const newReceipt = { id: makeId(), name, date, tax: 0, items: [], participants: [] };
     state.receipts.push(newReceipt);
     openReceipt(newReceipt.id);
     e.target.reset();

@@ -19,7 +19,7 @@ const CONFIG = {
 
 const TABS = {
   People: ['Name'],
-  Receipts: ['ID', 'Name', 'Date', 'Tax'],
+  Receipts: ['ID', 'Name', 'Date', 'Tax', 'Participants'],
   Items: ['ID', 'ReceiptID', 'Name', 'Price', 'SplitWith'],
   Users: ['Email', 'Name'],
 };
@@ -71,10 +71,17 @@ function verifyIdToken_(idToken) {
 function ensureTabs_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   Object.keys(TABS).forEach(function (title) {
+    const headers = TABS[title];
     let sheet = ss.getSheetByName(title);
     if (!sheet) {
       sheet = ss.insertSheet(title);
-      sheet.getRange(1, 1, 1, TABS[title].length).setValues([TABS[title]]);
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    } else if (sheet.getLastColumn() < headers.length) {
+      // Backfill headers for columns added in a later version of this script
+      // (e.g. Participants) onto a sheet created by an older version.
+      const existingCols = sheet.getLastColumn();
+      const missing = headers.slice(existingCols);
+      sheet.getRange(1, existingCols + 1, 1, missing.length).setValues([missing]);
     }
   });
 }
@@ -102,7 +109,11 @@ function loadState_() {
   const people = readRows_(ss, 'People').map(function (r) { return r[0]; }).filter(Boolean);
 
   const receipts = readRows_(ss, 'Receipts').map(function (r) {
-    return { id: String(r[0]), name: r[1] || '', date: r[2] || '', tax: Number(r[3]) || 0, items: [] };
+    return {
+      id: String(r[0]), name: r[1] || '', date: r[2] || '', tax: Number(r[3]) || 0,
+      participants: String(r[4] || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+      items: [],
+    };
   });
 
   const items = readRows_(ss, 'Items').map(function (r) {
@@ -128,7 +139,7 @@ function saveState_(state) {
 
   writeRows_(ss, 'People', state.people.map(function (p) { return [p]; }));
   writeRows_(ss, 'Receipts', state.receipts.map(function (r) {
-    return [r.id, r.name, r.date, r.tax];
+    return [r.id, r.name, r.date, r.tax, (r.participants || []).join(', ')];
   }));
 
   const itemRows = [];

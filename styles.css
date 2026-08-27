@@ -63,9 +63,32 @@ input[type="text"], input[type="number"], input[type="date"] {
   color: var(--text);
 }
 input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-.checkbox-list { display: flex; flex-wrap: wrap; gap: 10px 18px; }
-.checkbox-list label { display: flex; align-items: center; gap: 6px; font-weight: normal; margin: 0; cursor: pointer; }
-.checkbox-list input[type="checkbox"] { width: auto; margin: 0; }
+.checkbox-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  margin: 0;
+  cursor: pointer;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.checkbox-list label:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.checkbox-list input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.split-quick-actions { display: flex; gap: 14px; margin-bottom: 10px; }
 .add-person-row { display: flex; gap: 8px; margin-top: 12px; }
 .add-person-row input { flex: 1; }
 button { cursor: pointer; border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 500; }
