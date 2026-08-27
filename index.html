@@ -65,10 +65,6 @@
           <label for="receipt-date">Date</label>
           <input type="date" id="receipt-date" required>
         </div>
-        <div class="field">
-          <label for="receipt-tax">Tax ($)</label>
-          <input type="number" id="receipt-tax" step="0.01" min="0" placeholder="0.00">
-        </div>
         <button type="submit" class="btn-primary">Start receipt</button>
       </form>
     </div>
@@ -129,12 +125,17 @@
         </form>
       </div>
 
-      <div class="panel">
-        <h2>Totals by Person</h2>
+      <div class="panel" id="tax-panel">
+        <h2>Tax</h2>
         <div class="field tax-field">
           <label for="receipt-tax-edit">Tax ($)</label>
           <input type="number" id="receipt-tax-edit" step="0.01" min="0" placeholder="0.00">
         </div>
+        <button type="button" class="btn-primary" id="generate-totals-btn">Generate Totals</button>
+      </div>
+
+      <div class="panel" id="totals-panel" style="display:none;">
+        <h2>Totals by Person</h2>
         <div class="table-scroll">
           <table class="totals-table">
             <thead>
@@ -170,6 +171,17 @@
   let idToken = null;
   let currentView = 'home'; // 'home' | 'newReceipt' | 'detail'
   let myName = null;
+  const generatedReceipts = new Set();
+
+  function refreshTotals(receiptId) {
+    const panel = document.getElementById('totals-panel');
+    if (receiptId && generatedReceipts.has(receiptId)) {
+      panel.style.display = '';
+      renderTotals();
+    } else {
+      panel.style.display = 'none';
+    }
+  }
 
   function money(n) {
     return '$' + n.toFixed(2);
@@ -449,8 +461,8 @@
     document.getElementById('detail-name').textContent = receipt.name;
     document.getElementById('detail-meta').textContent = receipt.date;
     document.getElementById('receipt-tax-edit').value = receipt.tax || '';
+    refreshTotals(receipt.id);
     renderLog();
-    renderTotals();
   }
 
   function renderLog() {
@@ -481,7 +493,7 @@
       btn.addEventListener('click', async () => {
         receipt.items.splice(Number(btn.dataset.itemIdx), 1);
         renderLog();
-        renderTotals();
+        refreshTotals(receipt.id);
         await syncToSheet();
       });
     });
@@ -584,7 +596,7 @@
     if (addPerson(input.value)) {
       collapseAddPersonRow();
       renderPeopleCheckboxes();
-      renderTotals();
+      refreshTotals(selectedReceipt()?.id);
       await syncToSheet();
     }
   });
@@ -602,11 +614,10 @@
     e.preventDefault();
     const name = document.getElementById('receipt-name').value.trim();
     const date = document.getElementById('receipt-date').value;
-    const tax = parseFloat(document.getElementById('receipt-tax').value) || 0;
 
     if (!name || !date) return;
 
-    const newReceipt = { id: makeId(), name, date, tax, items: [] };
+    const newReceipt = { id: makeId(), name, date, tax: 0, items: [] };
     state.receipts.push(newReceipt);
     openReceipt(newReceipt.id);
     e.target.reset();
@@ -618,8 +629,15 @@
     const receipt = selectedReceipt();
     if (!receipt) return;
     receipt.tax = parseFloat(e.target.value) || 0;
-    renderTotals();
+    refreshTotals(receipt.id);
     await syncToSheet();
+  });
+
+  document.getElementById('generate-totals-btn').addEventListener('click', () => {
+    const receipt = selectedReceipt();
+    if (!receipt) return;
+    generatedReceipts.add(receipt.id);
+    refreshTotals(receipt.id);
   });
 
   document.getElementById('delete-receipt-btn').addEventListener('click', async () => {
@@ -658,7 +676,7 @@
     receipt.items.push({ id: makeId(), name, price, splitWith: checked });
 
     renderLog();
-    renderTotals();
+    refreshTotals(receipt.id);
     e.target.reset();
     document.querySelectorAll('input[name="split-with"]').forEach(cb => cb.checked = false);
 
