@@ -21,6 +21,7 @@ const TABS = {
   People: ['Name'],
   Receipts: ['ID', 'Name', 'Date', 'Tax'],
   Items: ['ID', 'ReceiptID', 'Name', 'Price', 'SplitWith'],
+  Users: ['Email', 'Name'],
 };
 
 function doPost(e) {
@@ -34,10 +35,19 @@ function doPost(e) {
     ensureTabs_();
 
     if (body.action === 'load') {
-      return jsonResponse_(Object.assign({ email: email }, loadState_()));
+      const result = loadState_();
+      result.email = email;
+      result.myName = getMyName_(email);
+      return jsonResponse_(result);
     }
     if (body.action === 'sync') {
       saveState_(body.state);
+      return jsonResponse_({ ok: true });
+    }
+    if (body.action === 'setName') {
+      const name = String(body.name || '').trim();
+      if (!name) throw new Error('Name cannot be empty');
+      setMyName_(email, name);
       return jsonResponse_({ ok: true });
     }
     return jsonResponse_({ error: 'Unknown action: ' + body.action });
@@ -128,6 +138,42 @@ function saveState_(state) {
     });
   });
   writeRows_(ss, 'Items', itemRows);
+}
+
+function getMyName_(email) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const rows = readRows_(ss, 'Users');
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === email.toLowerCase()) return rows[i][1];
+  }
+  return null;
+}
+
+function setMyName_(email, name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Users');
+  const rows = readRows_(ss, 'Users');
+
+  let rowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === email.toLowerCase()) { rowIndex = i; break; }
+  }
+
+  if (rowIndex === -1) {
+    sheet.appendRow([email, name]);
+  } else {
+    sheet.getRange(rowIndex + 2, 2).setValue(name); // +2: header row + 1-based index
+  }
+
+  addPersonIfMissing_(name);
+}
+
+function addPersonIfMissing_(name) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const people = readRows_(ss, 'People').map(function (r) { return r[0]; });
+  if (people.indexOf(name) === -1) {
+    ss.getSheetByName('People').appendRow([name]);
+  }
 }
 
 function jsonResponse_(obj) {

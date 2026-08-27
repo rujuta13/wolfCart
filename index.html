@@ -5,191 +5,7 @@
 <title>wolfCart</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://accounts.google.com/gsi/client" async defer onload="gisLoaded()"></script>
-<style>
-  :root {
-    --bg: #f7f7f8;
-    --panel: #ffffff;
-    --border: #e0e0e4;
-    --text: #1f2023;
-    --muted: #6b6d75;
-    --accent: #3b6ff0;
-    --accent-hover: #2e58c9;
-    --danger: #d9534f;
-    --header-bg: #f0f2f7;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    padding: 32px 16px;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 14px;
-  }
-  .wrap { max-width: 760px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-  .panel h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    margin: 0 0 14px;
-  }
-  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
-  tbody tr:last-child td { border-bottom: none; }
-  .empty-row td, .empty-state { color: var(--muted); font-style: italic; text-align: center; padding: 16px 6px; }
-  .row-delete {
-    color: var(--muted);
-    cursor: pointer;
-    border: none;
-    background: none;
-    font-size: 15px;
-    line-height: 1;
-    padding: 2px 6px;
-  }
-  .row-delete:hover { color: var(--danger); }
-  form .field { margin-bottom: 14px; }
-  label { display: block; margin-bottom: 4px; font-weight: 500; }
-  input[type="text"], input[type="number"], input[type="date"] {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 14px;
-    background: #fff;
-    color: var(--text);
-  }
-  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .checkbox-list { display: flex; flex-wrap: wrap; gap: 10px 18px; }
-  .checkbox-list label { display: flex; align-items: center; gap: 6px; font-weight: normal; margin: 0; cursor: pointer; }
-  .checkbox-list input[type="checkbox"] { width: auto; margin: 0; }
-  .add-person-row { display: flex; gap: 8px; margin-top: 12px; }
-  .add-person-row input { flex: 1; }
-  button { cursor: pointer; border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 500; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: var(--accent-hover); }
-  .btn-secondary { background: #eceef3; color: var(--text); }
-  .btn-secondary:hover { background: #dfe2ea; }
-  .btn-link {
-    background: none;
-    color: var(--accent);
-    padding: 4px 0;
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .btn-link:hover { text-decoration: underline; }
-  .btn-small { padding: 6px 12px; font-size: 13px; }
-  .split-with-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .split-with-row .checkbox-list { flex: 1; }
-  .split-with-row #add-person-toggle-btn { flex-shrink: 0; white-space: nowrap; }
-  #others-toggle-btn { margin-top: 4px; }
-  #others-checkboxes { margin-top: 8px; }
-  .tax-field { max-width: 200px; margin-bottom: 16px; }
-  .amount { text-align: right; }
-  .grand-total td { font-weight: 700; border-top: 2px solid var(--border); }
-  .error { color: var(--danger); font-size: 13px; margin-top: 6px; min-height: 16px; }
-  .user-bar { display: none; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-  .user-bar .user-info {
-    color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .user-bar .right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-  #sync-status { color: var(--muted); font-size: 12px; min-width: 60px; text-align: right; }
-
-  /* Home view */
-  .home-cta { text-align: center; padding: 8px 0 28px; }
-  .btn-large {
-    font-size: 17px;
-    padding: 18px 36px;
-    border-radius: 12px;
-  }
-  #past-receipts-list .empty-state { padding: 24px 6px; }
-  .receipt-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .receipt-card:hover { background: var(--header-bg); border-color: var(--accent); }
-  .receipt-card-name { font-weight: 600; }
-  .receipt-card-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .receipt-card-arrow { color: var(--muted); font-size: 20px; flex-shrink: 0; }
-
-  /* Detail view */
-  .back-btn { margin-bottom: 16px; }
-  .detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
-  }
-  .detail-header h2 {
-    font-size: 18px;
-    text-transform: none;
-    letter-spacing: normal;
-    color: var(--text);
-    margin: 0 0 4px;
-    padding: 0;
-  }
-  .detail-header .meta { color: var(--muted); font-size: 13px; }
-
-  #loading-screen {
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 100px 20px;
-    color: var(--muted);
-    font-size: 15px;
-  }
-  .spinner {
-    width: 64px;
-    height: 64px;
-    border: 6px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  @media (max-width: 480px) {
-    body { padding: 20px 12px; }
-    .panel { padding: 16px; }
-    h1 { font-size: 18px; }
-    .btn-large { padding: 14px 24px; font-size: 16px; }
-    th, td { padding: 8px 4px; font-size: 13px; }
-    .home-cta { padding: 4px 0 20px; }
-  }
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="wrap">
@@ -218,7 +34,18 @@
 
   <div id="app-panels" style="display:none;">
 
+    <div class="panel" id="whoami-panel" style="display:none;">
+      <h2>What's your name?</h2>
+      <p class="sub" style="margin-bottom:16px;">This links your Google account to a name, so wolfCart can show you the receipts you're part of. It's saved to the shared sheet, so it'll follow you to any device.</p>
+      <div class="field" style="max-width:320px;">
+        <input type="text" id="whoami-input" placeholder="Your name">
+      </div>
+      <button type="button" class="btn-primary" id="whoami-save-btn">Save</button>
+      <div class="error" id="whoami-error"></div>
+    </div>
+
     <div class="panel" id="home-view">
+      <div class="whoami-note" id="whoami-note" style="display:none;"></div>
       <div class="home-cta">
         <button type="button" class="btn-primary btn-large" id="home-new-receipt-btn">+ Start New Receipt</button>
       </div>
@@ -342,6 +169,7 @@
   let state = { people: [], receipts: [], selectedReceiptId: null };
   let idToken = null;
   let currentView = 'home'; // 'home' | 'newReceipt' | 'detail'
+  let myName = null;
 
   function money(n) {
     return '$' + n.toFixed(2);
@@ -402,11 +230,17 @@
       state.people = data.people;
       state.receipts = data.receipts;
       state.selectedReceiptId = null;
+      myName = data.myName || null;
 
       document.getElementById('loading-screen').style.display = 'none';
       document.getElementById('app-panels').style.display = '';
       renderPeopleCheckboxes();
-      showView('home');
+
+      if (!myName) {
+        showWhoAmI();
+      } else {
+        showView('home');
+      }
     } catch (err) {
       idToken = null;
       document.getElementById('loading-screen').style.display = 'none';
@@ -449,6 +283,7 @@
 
   function showView(view) {
     currentView = view;
+    document.getElementById('whoami-panel').style.display = 'none';
     document.getElementById('home-view').style.display = view === 'home' ? '' : 'none';
     document.getElementById('receipt-panel').style.display = view === 'newReceipt' ? '' : 'none';
     document.getElementById('detail-view').style.display = view === 'detail' ? '' : 'none';
@@ -461,6 +296,41 @@
     state.selectedReceiptId = id;
     showView('detail');
   }
+
+  function showWhoAmI() {
+    document.getElementById('home-view').style.display = 'none';
+    document.getElementById('receipt-panel').style.display = 'none';
+    document.getElementById('detail-view').style.display = 'none';
+    document.getElementById('whoami-panel').style.display = '';
+    document.getElementById('whoami-input').value = myName || '';
+    document.getElementById('whoami-error').textContent = '';
+    document.getElementById('whoami-input').focus();
+  }
+
+  document.getElementById('whoami-save-btn').addEventListener('click', async () => {
+    const errorEl = document.getElementById('whoami-error');
+    const name = document.getElementById('whoami-input').value.trim();
+    if (!name) {
+      errorEl.textContent = 'Enter a name.';
+      return;
+    }
+    try {
+      await callAppsScript('setName', { name });
+      myName = name;
+      if (!state.people.includes(name)) state.people.push(name);
+      renderPeopleCheckboxes();
+      showView('home');
+    } catch (err) {
+      errorEl.textContent = 'Failed to save: ' + err.message;
+    }
+  });
+
+  document.getElementById('whoami-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('whoami-save-btn').click();
+    }
+  });
 
   // ---------- App logic ----------
 
@@ -527,14 +397,34 @@
     }
   }
 
-  function renderHome() {
-    const list = document.getElementById('past-receipts-list');
-    list.innerHTML = '';
-    if (state.receipts.length === 0) {
-      list.innerHTML = '<p class="empty-state">No receipts yet — start one above.</p>';
+  function renderWhoAmINote() {
+    const note = document.getElementById('whoami-note');
+    if (!myName) {
+      note.style.display = 'none';
       return;
     }
-    [...state.receipts].reverse().forEach(r => {
+    note.style.display = '';
+    note.innerHTML = `Viewing as <strong>${escapeHtml(myName)}</strong> · <button type="button" class="btn-link" id="whoami-change-btn" style="padding:0;">change</button>`;
+    document.getElementById('whoami-change-btn').addEventListener('click', showWhoAmI);
+  }
+
+  function renderHome() {
+    renderWhoAmINote();
+
+    const list = document.getElementById('past-receipts-list');
+    list.innerHTML = '';
+
+    const visible = myName
+      ? state.receipts.filter(r => r.items.some(item => item.splitWith.includes(myName)))
+      : state.receipts;
+
+    if (visible.length === 0) {
+      list.innerHTML = myName
+        ? '<p class="empty-state">No receipts with you on them yet.</p>'
+        : '<p class="empty-state">No receipts yet — start one above.</p>';
+      return;
+    }
+    [...visible].reverse().forEach(r => {
       const card = document.createElement('div');
       card.className = 'receipt-card';
       const itemCount = r.items.length;
