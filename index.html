@@ -28,7 +28,7 @@
   </div>
 
   <div id="loading-screen">
-    <div class="spinner"></div>
+    <div class="heart-spinner">♡</div>
     <p>Loading your data…</p>
   </div>
 
@@ -303,7 +303,7 @@
     setSyncStatus('Saving...');
     try {
       await callAppsScript('sync', { state: { people: state.people, receipts: state.receipts } });
-      setSyncStatus('Synced');
+      setSyncStatus('Synced ♡');
       setTimeout(() => setSyncStatus(''), 1500);
     } catch (err) {
       setSyncStatus('');
